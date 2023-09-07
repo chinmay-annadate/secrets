@@ -3,7 +3,8 @@ require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
-const md5 = require('md5');
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 const app = express();
 
@@ -32,9 +33,11 @@ app
   .post(function (req, res) {
     User.findOne({ uname: req.body.username })
       .then((data) => {
-        if (md5(req.body.password) === data.pass) {
-          res.render("secrets");
-        }
+        bcrypt.compare(req.body.password, data.pass, function (err, result) {
+          if (result) {
+            res.render("secrets");
+          }
+        });
       })
       .catch((e) => {
         console.log(e);
@@ -47,11 +50,13 @@ app
     res.render("register");
   })
   .post(function (req, res) {
-    const newUser = new User({
-      uname: req.body.username,
-      pass: md5(req.body.password),
+    bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+      const newUser = new User({
+        uname: req.body.username,
+        pass: hash,
+      });
+      newUser.save().then(res.render("secrets"));
     });
-    newUser.save().then(res.render("secrets"));
   });
 
 app.listen(3000, function () {
