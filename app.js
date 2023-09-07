@@ -6,6 +6,8 @@ const mongoose = require("mongoose");
 const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const findOrCreate = require("mongoose-findorcreate");
 
 const app = express();
 
@@ -32,6 +34,7 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.plugin(passportLocalMongoose);
+userSchema.plugin(findOrCreate);
 
 const User = mongoose.model("User", userSchema);
 
@@ -44,6 +47,22 @@ passport.serializeUser(function (user, done) {
 passport.deserializeUser(function (user, done) {
   done(null, user);
 });
+
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+      callbackURL: "https://127.0.0.1:3000/auth/google/secrets",
+      userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+    },
+    function (accessToken, refreshToken, profile, cb) {
+      User.findOrCreate({ googleId: profile.id }, function (err, user) {
+        return done(err, user);
+      });
+    }
+  )
+);
 
 app.get("/", function (req, res) {
   res.render("home");
@@ -108,6 +127,25 @@ app.route("/logout").get(function (req, res) {
     }
   });
 });
+
+app.route("/auth/google").get(function (req, res) {
+  passport.authenticate("google", { scope: ["profile"] })(
+    req,
+    res,
+    function () {
+      res.redirect("/secrets");
+    }
+  );
+});
+
+app.route("/auth/google/secrets").get(
+  passport.authenticate("google", {
+    failureRedirect: "/login",
+  }),
+  function (req, res) {
+    res.redirect("/secrets");
+  }
+);
 
 app.listen(3000, function () {
   console.log("Server is running on port 3000");
