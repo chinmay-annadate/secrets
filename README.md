@@ -2,6 +2,7 @@
 - Post your secrets anonymous
 - Created using Express.js and EJS
 - MongoDB used as database
+- Bootstrap CSS
 
 ## Security libraries used:
 - dotenv
